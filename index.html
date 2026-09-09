@@ -283,22 +283,18 @@ function getLocation() {
 function submitAttendance() {
 
   const employeeId =
-    document.getElementById(
-      "employeeId"
-    ).value.trim();
-
+    document.getElementById("employeeId").value.trim();
 
   const type =
-    document.getElementById(
-      "type"
-    ).value;
-
+    document.getElementById("type").value;
 
   const message =
-    document.getElementById(
-      "message"
-    );
+    document.getElementById("message");
 
+
+  // ==============================
+  // CHECK EMPLOYEE ID
+  // ==============================
 
   if (!employeeId) {
 
@@ -311,8 +307,14 @@ function submitAttendance() {
   }
 
 
-  if (latitude === null ||
-      longitude === null) {
+  // ==============================
+  // CHECK LOCATION
+  // ==============================
+
+  if (
+    latitude === null ||
+    longitude === null
+  ) {
 
     message.innerHTML =
       '<div class="error">' +
@@ -323,87 +325,244 @@ function submitAttendance() {
   }
 
 
-  message.innerHTML =
-    "⏳ Submitting attendance...";
-
+  // ==============================
+  // DISABLE BUTTON
+  // ==============================
 
   document.getElementById(
     "submitButton"
   ).disabled = true;
 
-
-  /*
-   * GOOGLE APPS SCRIPT CONNECTION
-   *
-   * We will add your Apps Script
-   * Web App URL in the next step.
-   */
+  document.getElementById(
+    "locationButton"
+  ).disabled = true;
 
 
-  const data = {
-
-    employeeId: employeeId,
-
-    type: type,
-
-    latitude: latitude,
-
-    longitude: longitude
-
-  };
+  message.innerHTML =
+    "⏳ Submitting attendance...";
 
 
-  console.log(data);
+  // ==============================
+  // YOUR APPS SCRIPT URL
+  // ==============================
+
+  const scriptURL =
+    "https://script.google.com/macros/s/AKfycbwmHbl3ccGxE8FWcJxV88TA9809x1tx3PT7obonTTrWQ_lgAKdK32p3Gn3f05eNRwdobg/exec";
 
 
-  /*
-   * TEMPORARY TEST
-   */
+  // ==============================
+  // CREATE CALLBACK NAME
+  // ==============================
+
+  const callbackName =
+    "attendanceCallback_" +
+    Date.now();
+
+
+  // ==============================
+  // CREATE SCRIPT TAG
+  // ==============================
+
+  const script =
+    document.createElement("script");
+
+
+  // ==============================
+  // CALLBACK FUNCTION
+  // ==============================
+
+  window[callbackName] =
+    function(result) {
+
+      // Remove script
+      script.remove();
+
+      // Remove callback
+      delete window[callbackName];
+
+
+      if (result.success) {
+
+        message.innerHTML =
+
+          '<div class="success">' +
+
+          '<b>✅ Attendance submitted successfully!</b>' +
+
+          '<br><br>' +
+
+          'Employee ID: ' +
+          result.employeeId +
+
+          '<br>' +
+
+          'Employee Name: ' +
+          result.employeeName +
+
+          '<br>' +
+
+          'Type: ' +
+          result.type +
+
+          '<br><br>' +
+
+          'Latitude: ' +
+          Number(result.latitude).toFixed(6) +
+
+          '<br>' +
+
+          'Longitude: ' +
+          Number(result.longitude).toFixed(6) +
+
+          '<br><br>' +
+
+          '<a class="map-button" ' +
+          'href="' +
+          result.mapsLink +
+          '" target="_blank">' +
+
+          '📍 View Location' +
+
+          '</a>' +
+
+          '</div>';
+
+
+        // Reset form
+
+        document.getElementById(
+          "employeeId"
+        ).value = "";
+
+
+        latitude = null;
+
+        longitude = null;
+
+
+        document.getElementById(
+          "locationStatus"
+        ).innerHTML =
+          "Location not captured.";
+
+
+        document.getElementById(
+          "submitButton"
+        ).disabled = true;
+
+
+        document.getElementById(
+          "locationButton"
+        ).disabled = false;
+
+      }
+
+      else {
+
+        message.innerHTML =
+
+          '<div class="error">' +
+
+          '❌ ' +
+
+          result.message +
+
+          '</div>';
+
+
+        document.getElementById(
+          "submitButton"
+        ).disabled = false;
+
+
+        document.getElementById(
+          "locationButton"
+        ).disabled = false;
+
+      }
+
+    };
+
+
+  // ==============================
+  // CREATE REQUEST URL
+  // ==============================
+
+  const params =
+
+    "?api=attendance" +
+
+    "&action=submit" +
+
+    "&employeeId=" +
+    encodeURIComponent(employeeId) +
+
+    "&type=" +
+    encodeURIComponent(type) +
+
+    "&latitude=" +
+    encodeURIComponent(latitude) +
+
+    "&longitude=" +
+    encodeURIComponent(longitude) +
+
+    "&callback=" +
+    encodeURIComponent(callbackName);
+
+
+  // ==============================
+  // SEND REQUEST
+  // ==============================
+
+  script.src =
+    scriptURL + params;
+
+
+  document.body.appendChild(script);
+
+
+  // ==============================
+  // TIMEOUT
+  // ==============================
 
   setTimeout(function() {
 
-    message.innerHTML =
+    if (
+      document.body.contains(script)
+    ) {
 
-      '<div class="success">' +
+      script.remove();
 
-      '<b>✅ GPS data captured</b>' +
-
-      '<br><br>' +
-
-      'Employee ID: ' +
-
-      employeeId +
-
-      '<br>' +
-
-      'Type: ' +
-
-      type +
-
-      '<br><br>' +
-
-      'Latitude: ' +
-
-      latitude.toFixed(6) +
-
-      '<br>' +
-
-      'Longitude: ' +
-
-      longitude.toFixed(6) +
-
-      '</div>';
+      delete window[callbackName];
 
 
-    document.getElementById(
-      "submitButton"
-    ).disabled = false;
+      message.innerHTML =
 
-  }, 1000);
+        '<div class="error">' +
+
+        '❌ Server did not respond.' +
+
+        '<br><br>' +
+
+        'Please check your Apps Script deployment.' +
+
+        '</div>';
+
+
+      document.getElementById(
+        "submitButton"
+      ).disabled = false;
+
+
+      document.getElementById(
+        "locationButton"
+      ).disabled = false;
+
+    }
+
+  }, 20000);
 
 }
-
-
 // =====================================
 // SERVICE WORKER
 // =====================================
